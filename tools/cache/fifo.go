@@ -70,7 +70,7 @@ type Queue interface {
 	// AddIfNotPresent puts the given accumulator into the Queue (in
 	// association with the accumulator's key) if and only if that key
 	// is not already associated with a non-empty accumulator.
-	// 对象如果不存在就添加
+	// 对象(必须是Deltas数组，就是通过Pop（）弹出的对象)如果不存在就添加
 	AddIfNotPresent(interface{}) error
 
 	// HasSynced returns true if the first batch of keys have all been
