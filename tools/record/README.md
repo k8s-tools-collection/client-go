@@ -6,3 +6,5 @@ event的处理流程：
 - 当 EventSink handler收到处理事件就通过预处理之后将事件发送给apiserver
 - 其中预处理包含三个动作，1、限流 2、聚合 3、计数
 - apiserver收到事件处理之后就存储在etcd中
+
+event不保证100%事件写入，为了后端服务etcd的可用性，event事件在整个集群中产生是非常频繁，尤其在服务不稳定的时候，而相比Deployment,Pod等其他资源，没那么的重要。
