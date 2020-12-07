@@ -232,17 +232,27 @@ type aggregateRecord struct {
 // - The cache key for the event, for correlation purposes. This will be set to
 //   the full key for normal events, and to the result of
 //   EventAggregatorMessageFunc for aggregate events.
+// 聚合event，如果在最近 10 分钟出现过 10 个相似的事件
+//（除了 message 和时间戳之外其他关键字段都相同的事件),
+// aggregator 会把它们的 message 设置为 (combined from similar events)+event.Message
+//判断了通过cache和localKeys判断事件是否相似，
+//如果最近 10 分钟出现过 10 个相似的事件就合并并加上前缀
+//后续通过logger.eventObserve方法进行count累加，
+//如果message也相同，肯定就是直接count++
 func (e *EventAggregator) EventAggregate(newEvent *v1.Event) (*v1.Event, string) {
 	now := metav1.NewTime(e.clock.Now())
 	var record aggregateRecord
 	// eventKey is the full cache key for this event
+	// 将除了时间戳外所有字段结合在一起
 	eventKey := getEventKey(newEvent)
 	// aggregateKey is for the aggregate event, if one is needed.
+	// 除了message和时间戳外的字段结合在一起，localKey 是message
 	aggregateKey, localKey := e.keyFunc(newEvent)
 
 	// Do we have a record of similar events in our cache?
 	e.Lock()
 	defer e.Unlock()
+	//根据aggregateKey查询是否存在，如果是相同或者相类似的事件会被放入cache中
 	value, found := e.cache.Get(aggregateKey)
 	if found {
 		record = value.(aggregateRecord)
@@ -251,6 +261,8 @@ func (e *EventAggregator) EventAggregate(newEvent *v1.Event) (*v1.Event, string)
 	// Is the previous record too old? If so, make a fresh one. Note: if we didn't
 	// find a similar record, its lastTimestamp will be the zero value, so we
 	// create a new one in that case.
+	//  判断上次事件产生的时间是否超过10分钟，
+	// 如何操作则重新生成一个localKeys集合（集合中存放message）
 	maxInterval := time.Duration(e.maxIntervalInSeconds) * time.Second
 	interval := now.Time.Sub(record.lastTimestamp.Time)
 	if interval > maxInterval {
@@ -258,11 +270,14 @@ func (e *EventAggregator) EventAggregate(newEvent *v1.Event) (*v1.Event, string)
 	}
 
 	// Write the new event into the aggregation record and put it on the cache
+	//将locakKey也就是message放入集合中,
+	//如果message相同就是覆盖了
 	record.localKeys.Insert(localKey)
 	record.lastTimestamp = now
 	e.cache.Add(aggregateKey, record)
 
 	// If we are not yet over the threshold for unique events, don't correlate them
+	//判断localKeys集合中存放的类似事件是否超过10个，
 	if uint(record.localKeys.Len()) < e.maxEvents {
 		return newEvent, eventKey
 	}
@@ -281,6 +296,7 @@ func (e *EventAggregator) EventAggregate(newEvent *v1.Event) (*v1.Event, string)
 		FirstTimestamp: now,
 		InvolvedObject: newEvent.InvolvedObject,
 		LastTimestamp:  now,
+		//这里会对message加个前缀：(combined from similar events):
 		Message:        e.messageFunc(newEvent),
 		Type:           newEvent.Type,
 		Reason:         newEvent.Reason,
@@ -497,8 +513,15 @@ func (c *EventCorrelator) EventCorrelate(newEvent *v1.Event) (*EventCorrelateRes
 	if newEvent == nil {
 		return nil, fmt.Errorf("event is nil")
 	}
+	// 聚合event，如果在最近 10 分钟出现过 10 个相似的事件
+	//（除了 message 和时间戳之外其他关键字段都相同的事件），
+	//aggregator 会把它们的 message 设置为 (combined from similar events)+event.Message
 	aggregateEvent, ckey := c.aggregator.EventAggregate(newEvent)
+	//它会把相同的事件以及包含 aggregator 被聚合了的相似的事件，
+	//通过增加 Count 字段来记录事件发生了多少次。
 	observedEvent, patch, err := c.logger.eventObserve(aggregateEvent, ckey)
+	//这里实现了一个基于令牌桶的限流算法，
+	//如果超过设定的速率则丢弃，保证了apiserver的安全。
 	if c.filterFunc(observedEvent) {
 		return &EventCorrelateResult{Skip: true}, nil
 	}

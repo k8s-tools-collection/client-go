@@ -1,0 +1,34 @@
+```shell script
+.
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── Godeps
+├── INSTALL.md
+├── LICENSE
+├── OWNERS
+├── README.md
+├── SECURITY_CONTACTS
+├── code-of-conduct.md
+├── deprecated
+├── discovery
+├── dynamic
+├── examples
+├── go.mod
+├── go.sum
+├── informers
+├── kubernetes
+├── kubernetes_test
+├── listers
+├── metadata
+├── pkg
+├── plugin
+├── rest
+├── restmapper
+├── scale
+├── testing
+├── third_party
+├── tools
+├── transport
+├── tree.md
+└── util
+```
