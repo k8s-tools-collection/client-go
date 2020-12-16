@@ -217,18 +217,23 @@ func (c *threadSafeMap) Index(indexName string, obj interface{}) ([]interface{},
 }
 
 // ByIndex returns a list of the items whose indexed values in the given index include the given indexed value
+// 通过指定的索引函数,索引键，把索引键的对象全部取出来
 func (c *threadSafeMap) ByIndex(indexName, indexedValue string) ([]interface{}, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
+	// indexName的索引分类是否存在
 	indexFunc := c.indexers[indexName]
 	if indexFunc == nil {
 		return nil, fmt.Errorf("Index with name %s does not exist", indexName)
 	}
 
+	// 取出索引分类的所有索引
 	index := c.indices[indexName]
 
+	// 取出索引键的所有对象键
 	set := index[indexedValue]
+	// 遍历对象键输出
 	list := make([]interface{}, 0, set.Len())
 	for key := range set {
 		list = append(list, c.items[key])
@@ -239,26 +244,33 @@ func (c *threadSafeMap) ByIndex(indexName, indexedValue string) ([]interface{}, 
 
 // IndexKeys returns a list of the Store keys of the objects whose indexed values in the given index include the given indexed value.
 // IndexKeys is thread-safe so long as you treat all items as immutable.
+// 通过指定的索引函数,索引键，把索引键的对象键全部取出来
 func (c *threadSafeMap) IndexKeys(indexName, indexedValue string) ([]string, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
+	// 判断indexName的索引分类是否存在
 	indexFunc := c.indexers[indexName]
 	if indexFunc == nil {
 		return nil, fmt.Errorf("Index with name %s does not exist", indexName)
 	}
 
+	// 取出索引分类的所有索引
 	index := c.indices[indexName]
 
+	// 直接输出索引键内的所有对象键
 	set := index[indexedValue]
 	return set.List(), nil
 }
 
+// 获取索引分类内的所有索引键的
 func (c *threadSafeMap) ListIndexFuncValues(indexName string) []string {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
+	// 获取分类下的所有索引
 	index := c.indices[indexName]
+	// 直接遍历后输出索引键
 	names := make([]string, 0, len(index))
 	for key := range index {
 		names = append(names, key)
@@ -266,10 +278,12 @@ func (c *threadSafeMap) ListIndexFuncValues(indexName string) []string {
 	return names
 }
 
+// 获取 分类名:索引键的计算函数
 func (c *threadSafeMap) GetIndexers() Indexers {
 	return c.indexers
 }
 
+// 添加 分类:索引计算函数
 func (c *threadSafeMap) AddIndexers(newIndexers Indexers) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -281,10 +295,12 @@ func (c *threadSafeMap) AddIndexers(newIndexers Indexers) error {
 	oldKeys := sets.StringKeySet(c.indexers)
 	newKeys := sets.StringKeySet(newIndexers)
 
+	// 检测 old是否存在new keys
 	if oldKeys.HasAny(newKeys.List()...) {
 		return fmt.Errorf("indexer conflict: %v", oldKeys.Intersection(newKeys))
 	}
 
+	// 添加
 	for k, v := range newIndexers {
 		c.indexers[k] = v
 	}
