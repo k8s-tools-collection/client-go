@@ -77,6 +77,7 @@ type threadSafeMap struct {
 }
 
 /************** 存储相关的函数 ******************/
+// 依据对象键存储对象
 func (c *threadSafeMap) Add(key string, obj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()

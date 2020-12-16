@@ -106,7 +106,7 @@ type ExplicitKey string
 //
 // TODO: replace key-as-string with a key-as-struct so that this
 // packing/unpacking won't be necessary.
-// keyFunc函数的实现: 获取对象的namespace/name作为键
+// keyFuncd对象键函数的实现: 获取对象的namespace/name作为键
 func MetaNamespaceKeyFunc(obj interface{}) (string, error) {
 	if key, ok := obj.(ExplicitKey); ok {
 		return string(key), nil
@@ -158,25 +158,29 @@ var _ Store = &cache{}
 
 // Add inserts an item into the cache.
 func (c *cache) Add(obj interface{}) error {
-	key, err := c.keyFunc(obj) // 生成object的键
+	key, err := c.keyFunc(obj) // 生成对象键的
 	if err != nil {
 		return KeyError{obj, err}
 	}
+	// 对象键:对象存储
 	c.cacheStorage.Add(key, obj)
 	return nil
 }
 
 // Update sets an item in the cache to its updated state.
+// 更新对象
 func (c *cache) Update(obj interface{}) error {
 	key, err := c.keyFunc(obj)
 	if err != nil {
 		return KeyError{obj, err}
 	}
+	// 更新存储
 	c.cacheStorage.Update(key, obj)
 	return nil
 }
 
 // Delete removes an item from the cache.
+// 删除对象
 func (c *cache) Delete(obj interface{}) error {
 	key, err := c.keyFunc(obj)
 	if err != nil {
@@ -188,27 +192,32 @@ func (c *cache) Delete(obj interface{}) error {
 
 // List returns a list of all the items.
 // List is completely threadsafe as long as you treat all items as immutable.
+// 列举对象
 func (c *cache) List() []interface{} {
 	return c.cacheStorage.List()
 }
 
 // ListKeys returns a list of all the keys of the objects currently
 // in the cache.
+// 列举对象键
 func (c *cache) ListKeys() []string {
 	return c.cacheStorage.ListKeys()
 }
 
 // GetIndexers returns the indexers of cache
+// 获取 分类名:索引键的计算函数
 func (c *cache) GetIndexers() Indexers {
 	return c.cacheStorage.GetIndexers()
 }
 
 // Index returns a list of items that match on the index function
 // Index is thread-safe so long as you treat all items as immutable
+// 通过指定的索引函数计算对象的索引键，然后把索引键的对象全部取出来
 func (c *cache) Index(indexName string, obj interface{}) ([]interface{}, error) {
 	return c.cacheStorage.Index(indexName, obj)
 }
 
+// 通过指定的索引函数,索引键，把索引键的对象键全部取出来
 func (c *cache) IndexKeys(indexName, indexKey string) ([]string, error) {
 	return c.cacheStorage.IndexKeys(indexName, indexKey)
 }
