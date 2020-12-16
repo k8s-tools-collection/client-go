@@ -39,38 +39,48 @@ import (
 type Store interface {
 
 	// Add adds the given object to the accumulator associated with the given object's key
+	// 添加对象
 	Add(obj interface{}) error
 
 	// Update updates the given object in the accumulator associated with the given object's key
+	// 更新对象
 	Update(obj interface{}) error
 
 	// Delete deletes the given object from the accumulator associated with the given object's key
+	// 删除对象
 	Delete(obj interface{}) error
 
 	// List returns a list of all the currently non-empty accumulators
+	// 列举对象
 	List() []interface{}
 
 	// ListKeys returns a list of all the keys currently associated with non-empty accumulators
+	// 列举对象键
 	ListKeys() []string
 
 	// Get returns the accumulator associated with the given object's key
+	// 返回obj相同对象键的对象，对象键是通过对象计算出来的字符串
 	Get(obj interface{}) (item interface{}, exists bool, err error)
 
 	// GetByKey returns the accumulator associated with the given key
+	// 通过对象键获取对象
 	GetByKey(key string) (item interface{}, exists bool, err error)
 
 	// Replace will delete the contents of the store, using instead the
 	// given list. Store takes ownership of the list, you should not reference
 	// it after calling this function.
+	// 用[]interface{}替换Store存储的所有对象，等同于删除全部原有对象在逐一添加新的对象
 	Replace([]interface{}, string) error
 
 	// Resync is meaningless in the terms appearing here but has
 	// meaning in some implementations that have non-trivial
 	// additional behavior (e.g., DeltaFIFO).
+	// 重新同步
 	Resync() error
 }
 
 // KeyFunc knows how to make a key from an object. Implementations should be deterministic.
+// 计算对象键的函数
 type KeyFunc func(obj interface{}) (string, error)
 
 // KeyError will be returned any time a KeyFunc gives an error; it includes the object
@@ -96,6 +106,7 @@ type ExplicitKey string
 //
 // TODO: replace key-as-string with a key-as-struct so that this
 // packing/unpacking won't be necessary.
+// keyFunc函数的实现: 获取对象的namespace/name作为键
 func MetaNamespaceKeyFunc(obj interface{}) (string, error) {
 	if key, ok := obj.(ExplicitKey); ok {
 		return string(key), nil
@@ -126,16 +137,20 @@ func SplitMetaNamespaceKey(key string) (namespace, name string, err error) {
 		return parts[0], parts[1], nil
 	}
 
-	return "", "", fmt.Errorf("unexpected key format: %q", key)
+	return "", "", fmt.Errorf(  "unexpected key format: %q", key)
 }
 
 // `*cache` implements Indexer in terms of a ThreadSafeStore and an
 // associated KeyFunc.
+// `* cache`根据ThreadSafeStore和
+// 相关的KeyFunc实现了Indexer接口。
 type cache struct {
 	// cacheStorage bears the burden of thread safety for the cache
+	////线程安全的存储
 	cacheStorage ThreadSafeStore
 	// keyFunc is used to make the key for objects stored in and retrieved from items, and
 	// should be deterministic.
+	// 计算对象键的函数，创建cache对象的时候需要指定
 	keyFunc KeyFunc
 }
 
@@ -143,7 +158,7 @@ var _ Store = &cache{}
 
 // Add inserts an item into the cache.
 func (c *cache) Add(obj interface{}) error {
-	key, err := c.keyFunc(obj)
+	key, err := c.keyFunc(obj) // 生成object的键
 	if err != nil {
 		return KeyError{obj, err}
 	}
@@ -249,10 +264,11 @@ func (c *cache) Resync() error {
 	return nil
 }
 
+// 初始化cache
 // NewStore returns a Store implemented simply with a map and a lock.
 func NewStore(keyFunc KeyFunc) Store {
 	return &cache{
-		cacheStorage: NewThreadSafeStore(Indexers{}, Indices{}),
+		cacheStorage: NewThreadSafeStore(Indexers{}, Indices{}),// 数据载体
 		keyFunc:      keyFunc,
 	}
 }
@@ -260,7 +276,7 @@ func NewStore(keyFunc KeyFunc) Store {
 // NewIndexer returns an Indexer implemented simply with a map and a lock.
 func NewIndexer(keyFunc KeyFunc, indexers Indexers) Indexer {
 	return &cache{
-		cacheStorage: NewThreadSafeStore(indexers, Indices{}),
+		cacheStorage: NewThreadSafeStore(indexers, Indices{}),// 数据载体
 		keyFunc:      keyFunc,
 	}
 }

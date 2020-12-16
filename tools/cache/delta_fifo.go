@@ -76,6 +76,14 @@ func NewDeltaFIFO(keyFunc KeyFunc, knownObjects KeyListerGetter) *DeltaFIFO {
 
 // DeltaFIFOOptions is the configuration parameters for DeltaFIFO. All are
 // optional.
+// 生产者-消费者队列，生产者为Reflector，消费者为Pop()函数
+// 消费的数据存储到indexer中，可以通过informer的handler处理
+// informer的handler处理的数据需要与存储在Indexer中的数据匹配。
+// Pop的单位是一个Deltas，而不是Delta,同时实现了Queue和Store接口
+// DeltaFIFO使用Deltas保存了对象状态的变更(Add/Delete/Update)信息(如Pod的删除添加..)
+// Deltas缓存了针对相同对象的多个状态变更信息,如Pod的Deltas[0]可能更新了标签，
+// Deltas[1]可能删除了该Pod.最老的状态变更信息为Newest(),最新的状态变更信息为Oldest()。
+// 使用中，获取DeltaFIFO中对象的key以及获取DeltaFIFO都以最新状态为准。
 type DeltaFIFOOptions struct {
 
 	// KeyFunction is used to figure out what key an object should have. (It's
@@ -182,6 +190,8 @@ type DeltaFIFO struct {
 
 	// knownObjects list keys that are "known" --- affecting Delete(),
 	// Replace(), and Resync()
+	// KeyListerGetter接口中的方法ListKeys和GetByKey也是Store接口中的方法
+	// knownObjects能够被赋值为实现了Store的类型指针
 	knownObjects KeyListerGetter
 
 	// Used to indicate a queue is closed so a control loop can exit when a queue is empty.
@@ -421,6 +431,7 @@ func (f *DeltaFIFO) listLocked() []interface{} {
 
 // ListKeys returns a list of all the keys of the objects currently
 // in the FIFO.
+// 获取DeltaFIFO.items的所有的key
 func (f *DeltaFIFO) ListKeys() []string {
 	f.lock.RLock()
 	defer f.lock.RUnlock()
@@ -697,6 +708,8 @@ const (
 //
 // [*] Unless the change is a deletion, and then you'll get the final
 //     state of the object before it was deleted.
+// 操作类型
+// 保存操作执行后对象
 type Delta struct {
 	Type   DeltaType
 	Object interface{}
