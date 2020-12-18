@@ -675,7 +675,7 @@ func (f *DeltaFIFO) Replace(list []interface{}, resourceVersion string) error {
 			// While there shouldn't be any queued deletions in the initial
 			// population of the queue, it's better to be on the safe side.
 			// 记录第一次通过来的对象数量
-			f.initialPopulationCount = len(list) + queuedDeletions
+			f.initialPopulationCount = keys.Len() + queuedDeletions
 		}
 
 		return nil
@@ -712,7 +712,7 @@ func (f *DeltaFIFO) Replace(list []interface{}, resourceVersion string) error {
 	// 计算initialPopulationCount值的时候增加了删除对象的数量
 	if !f.populated {
 		f.populated = true
-		f.initialPopulationCount = len(list) + queuedDeletions
+		f.initialPopulationCount = keys.Len() + queuedDeletions
 	}
 
 	return nil
