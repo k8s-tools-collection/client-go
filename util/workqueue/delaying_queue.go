@@ -28,9 +28,9 @@ import (
 // DelayingInterface is an Interface that can Add an item at a later time. This makes it easier to
 // requeue items after failures without ending up in a hot-loop.
 type DelayingInterface interface {
-	Interface
+	Interface // 继承了通用队列所有接口
 	// AddAfter adds an item to the workqueue after the indicated duration has passed
-	AddAfter(item interface{}, duration time.Duration)
+	AddAfter(item interface{}, duration time.Duration) // 增加了延迟添加的接口
 }
 
 // NewDelayingQueue constructs a new workqueue with delayed queuing ability
@@ -74,29 +74,30 @@ type delayingType struct {
 	Interface
 
 	// clock tracks time for delayed firing
-	clock clock.Clock
+	clock clock.Clock // 时钟，用于获取时间
 
 	// stopCh lets us signal a shutdown to the waiting loop
-	stopCh chan struct{}
+	stopCh chan struct{} // 退出信号
 	// stopOnce guarantees we only signal shutdown a single time
-	stopOnce sync.Once
+	stopOnce sync.Once // 确保只接收一次退出信号
 
 	// heartbeat ensures we wait no more than maxWait before firing
-	heartbeat clock.Ticker
+	heartbeat clock.Ticker //心跳，定时器，在没有任何数据操作时可以定时的唤醒处理协程
 
 	// waitingForAddCh is a buffered channel that feeds waitingForAdd
-	waitingForAddCh chan *waitFor
+	waitingForAddCh chan *waitFor //所有延迟添加的元素封装成waitFor放到chan中
+
 
 	// metrics counts the number of retries
-	metrics retryMetrics
+	metrics retryMetrics // 统计重试次数
 }
 
 // waitFor holds the data to add and the time it should be added
 type waitFor struct {
-	data    t
-	readyAt time.Time
+	data    t // 元素数据，这个t就是在通用队列中定义的类型
+	readyAt time.Time // 添加到队列的时间
 	// index in the priority queue (heap)
-	index int
+	index int //索引
 }
 
 // waitForPriorityQueue implements a priority queue for waitFor items.
@@ -107,11 +108,16 @@ type waitFor struct {
 // it has been removed from the queue and placed at index Len()-1 by
 // container/heap. Push adds an item at index Len(), and container/heap
 // percolates it into the correct location.
+// 把需要延迟的元素形成了一个队列，队列按照元素的延时添加的时间(readyAt)从小到大排序
+// 实现的策略就是实现了go/src/container/heap/heap.go中的Interface类型，
+// waitForPriorityQueue这个数组是有序的，排序方式是按照时间从小到大
 type waitForPriorityQueue []*waitFor
 
+// 实现heap的接口，获取队列的长度
 func (pq waitForPriorityQueue) Len() int {
 	return len(pq)
 }
+// 判断i元素是否比j小
 func (pq waitForPriorityQueue) Less(i, j int) bool {
 	return pq[i].readyAt.Before(pq[j].readyAt)
 }

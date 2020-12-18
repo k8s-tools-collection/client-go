@@ -72,30 +72,30 @@ type Type struct {
 	// queue defines the order in which we will work on items. Every
 	// element of queue should be in the dirty set and not in the
 	// processing set.
-	queue []t
+	queue []t // 元素数组
 
 	// dirty defines all of the items that need to be processed.
-	dirty set
+	dirty set // 脏元素集合
 
 	// Things that are currently being processed are in the processing set.
 	// These things may be simultaneously in the dirty set. When we finish
 	// processing something and remove it from this set, we'll check if
 	// it's in the dirty set, and if so, add it to the queue.
-	processing set
+	processing set // 处理中的元素集合
 
-	cond *sync.Cond
+	cond *sync.Cond //条件同步
 
-	shuttingDown bool
+	shuttingDown bool // 关闭标记
 
 	metrics queueMetrics
 
 	unfinishedWorkUpdatePeriod time.Duration
-	clock                      clock.Clock
+	clock                      clock.Clock //获取时间
 }
 
-type empty struct{}
-type t interface{}
-type set map[t]empty
+type empty struct{} // 空类型，因为sizeof(struct{})=0
+type t interface{} // 元素类型是泛型
+type set map[t]empty // 用map实现的set，所有的value是空数据
 
 func (s set) has(item t) bool {
 	_, exists := s[item]
@@ -112,23 +112,32 @@ func (s set) delete(item t) {
 
 // Add marks item as needing processing.
 func (q *Type) Add(item interface{}) {
+	// 互斥锁
 	q.cond.L.Lock()
 	defer q.cond.L.Unlock()
+	// 队列正在关闭
 	if q.shuttingDown {
 		return
 	}
+	// 已经被标记为脏数据
 	if q.dirty.has(item) {
 		return
 	}
 
 	q.metrics.add(item)
 
+	// 添加到脏数据集合中
+	// 元素在被处理的同时又被添加了一次，
+	// 那么先前的那次可以理解为脏(过时)的，后续添加的要再被处理。
 	q.dirty.insert(item)
+	// 元素刚被拿走处理
 	if q.processing.has(item) {
 		return
 	}
 
+	// 追加到元素数组的尾部
 	q.queue = append(q.queue, item)
+	// 通知有新元素到了，此时有协程阻塞就会被唤醒
 	q.cond.Signal()
 }
 
@@ -147,18 +156,22 @@ func (q *Type) Len() int {
 func (q *Type) Get() (item interface{}, shutdown bool) {
 	q.cond.L.Lock()
 	defer q.cond.L.Unlock()
+	// 无数据协程阻塞
 	for len(q.queue) == 0 && !q.shuttingDown {
 		q.cond.Wait()
 	}
+	// 协程被激活但还没有数据，队列被关闭
 	if len(q.queue) == 0 {
 		// We must be shutting down.
 		return nil, true
 	}
 
+	// 弹出第一个元素
 	item, q.queue = q.queue[0], q.queue[1:]
 
 	q.metrics.get(item)
 
+	// 从dirty集合中移除，加入到processing集合
 	q.processing.insert(item)
 	q.dirty.delete(item)
 
@@ -174,7 +187,9 @@ func (q *Type) Done(item interface{}) {
 
 	q.metrics.done(item)
 
+	// 从processing集合删除
 	q.processing.delete(item)
+	// 脏元素集合，处理期间是不是又被添加，如果是那就在放到队列中
 	if q.dirty.has(item) {
 		q.queue = append(q.queue, item)
 		q.cond.Signal()
@@ -190,6 +205,7 @@ func (q *Type) ShutDown() {
 	q.shuttingDown = true
 	q.cond.Broadcast()
 }
+
 
 func (q *Type) ShuttingDown() bool {
 	q.cond.L.Lock()
