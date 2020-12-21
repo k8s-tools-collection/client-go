@@ -30,16 +30,19 @@ import (
 type Lister interface {
 	// List should return a list type object; the Items field will be extracted, and the
 	// ResourceVersion field will be used to start the watch in the right place.
+	// 根据选项列举对象
 	List(options metav1.ListOptions) (runtime.Object, error)
 }
 
 // Watcher is any object that knows how to start a watch on a resource.
 type Watcher interface {
 	// Watch should begin a watch at the specified version.
+	// 根据选项监控对象变化
 	Watch(options metav1.ListOptions) (watch.Interface, error)
 }
 
 // ListerWatcher is any object that knows how to perform an initial list and start a watch on a resource.
+//metav1.ListOptions，runtime.Object，watch.Interface都定义在apimachinery
 type ListerWatcher interface {
 	Lister
 	Watcher
