@@ -18,18 +18,18 @@ package workqueue
 
 // RateLimitingInterface is an interface that rate limits items being added to the queue.
 type RateLimitingInterface interface {
-	DelayingInterface
+	DelayingInterface // 继承延时队列
 
 	// AddRateLimited adds an item to the workqueue after the rate limiter says it's ok
-	AddRateLimited(item interface{})
+	AddRateLimited(item interface{}) // 按照限速方式添加元素的接口
 
 	// Forget indicates that an item is finished being retried.  Doesn't matter whether it's for perm failing
 	// or for success, we'll stop the rate limiter from tracking it.  This only clears the `rateLimiter`, you
 	// still have to call `Done` on the queue.
-	Forget(item interface{})
+	Forget(item interface{}) // 丢弃指定元素
 
 	// NumRequeues returns back how many times the item was requeued
-	NumRequeues(item interface{}) int
+	NumRequeues(item interface{}) int // 查询元素放入队列的次数
 }
 
 // NewRateLimitingQueue constructs a new workqueue with rateLimited queuing ability
@@ -50,13 +50,14 @@ func NewNamedRateLimitingQueue(rateLimiter RateLimiter, name string) RateLimitin
 
 // rateLimitingType wraps an Interface and provides rateLimited re-enquing
 type rateLimitingType struct {
-	DelayingInterface
+	DelayingInterface //继承延迟队列
 
-	rateLimiter RateLimiter
+	rateLimiter RateLimiter // 限速器
 }
 
 // AddRateLimited AddAfter's the item based on the time when the rate limiter says it's ok
 func (q *rateLimitingType) AddRateLimited(item interface{}) {
+	// 通过限速器获取延迟时间，然后加入到延时队列
 	q.DelayingInterface.AddAfter(item, q.rateLimiter.When(item))
 }
 
