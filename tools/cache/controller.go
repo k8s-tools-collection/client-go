@@ -240,9 +240,13 @@ func (c *controller) processLoop() {
 //      it will get an object of type DeletedFinalStateUnknown. This can
 //      happen if the watch is closed and misses the delete event and we don't
 //      notice the deletion until the subsequent re-list.
+// 回调函数函数的接口
 type ResourceEventHandler interface {
+	// 对象回调函数
 	OnAdd(obj interface{})
+	// 更新对象回调函数
 	OnUpdate(oldObj, newObj interface{})
+	// 删除对象回调函数
 	OnDelete(obj interface{})
 }
 

@@ -30,30 +30,40 @@ import (
 	"k8s.io/apimachinery/pkg/util/diff"
 )
 
+/*********用于实现突变检测***************/
+// 默认关闭突变检测
 var mutationDetectionEnabled = false
 
+// 通过环境变量KUBE_CACHE_MUTATION_DETECTOR控制
 func init() {
 	mutationDetectionEnabled, _ = strconv.ParseBool(os.Getenv("KUBE_CACHE_MUTATION_DETECTOR"))
 }
 
 // MutationDetector is able to monitor objects for mutation within a limited window of time
+// 突变检测的抽象
 type MutationDetector interface {
 	// AddObject adds the given object to the set being monitored for a while from now
+	// 记录所有对象
 	AddObject(obj interface{})
 
 	// Run starts the monitoring and does not return until the monitoring is stopped.
+	// 开启协程定期对比
 	Run(stopCh <-chan struct{})
 }
 
 // NewCacheMutationDetector creates a new instance for the defaultCacheMutationDetector.
+// 创建CacheMutationDetector对象
 func NewCacheMutationDetector(name string) MutationDetector {
+	// 构造一个什么都不做的对象
 	if !mutationDetectionEnabled {
 		return dummyMutationDetector{}
 	}
+	//构造一个默认的突变检测器
 	klog.Warningln("Mutation detector is enabled, this will result in memory leakage.")
 	return &defaultCacheMutationDetector{name: name, period: 1 * time.Second, retainDuration: 2 * time.Minute}
 }
 
+//什么都不做的突变检测器
 type dummyMutationDetector struct{}
 
 func (dummyMutationDetector) Run(stopCh <-chan struct{}) {
@@ -64,6 +74,7 @@ func (dummyMutationDetector) AddObject(obj interface{}) {
 // defaultCacheMutationDetector gives a way to detect if a cached object has been mutated
 // It has a list of cached objects and their copies.  I haven't thought of a way
 // to see WHO is mutating it, just that it's getting mutated.
+// 默认的突变检测器
 type defaultCacheMutationDetector struct {
 	name   string
 	period time.Duration
