@@ -40,27 +40,33 @@ type Config struct {
 	// The queue for your objects - has to be a DeltaFIFO due to
 	// assumptions in the implementation. Your Process() function
 	// should accept the output of this Queue's Pop() method.
+	// sharedInformer使用DeltaFIFO
 	Queue
 
 	// Something that can list and watch your objects.
+	// 构造Reflctor
 	ListerWatcher
 
 	// Something that can process a popped Deltas.
+	// 在调用DeltaFIFO.Pop()使用，弹出对象要如何处理
 	Process ProcessFunc
 
 	// ObjectType is an example object of the type this controller is
 	// expected to handle.  Only the type needs to be right, except
 	// that when that is `unstructured.Unstructured` the object's
 	// `"apiVersion"` and `"kind"` must also be right.
+	// 对象类型，Reflector使用
 	ObjectType runtime.Object
 
 	// FullResyncPeriod is the period at which ShouldResync is considered.
+	// 全量同步周期,Reflector使用
 	FullResyncPeriod time.Duration
 
 	// ShouldResync is periodically used by the reflector to determine
 	// whether to Resync the Queue. If ShouldResync is `nil` or
 	// returns true, it means the reflector should proceed with the
 	// resync.
+	// Reflector在全量更新的时候会调用该函数询问
 	ShouldResync ShouldResyncFunc
 
 	// If true, when Process() returns an error, re-enqueue the object.
@@ -68,12 +74,15 @@ type Config struct {
 	//       the object completely if desired. Pass the object in
 	//       question to this interface as a parameter.  This is probably moot
 	//       now that this functionality appears at a higher level.
+	// 错误是否需要重试
 	RetryOnError bool
 
 	// Called whenever the ListAndWatch drops the connection with an error.
+	// 处理ListAndWatch的错误
 	WatchErrorHandler WatchErrorHandler
 
 	// WatchListPageSize is the requested chunk size of initial and relist watch lists.
+	// 获取资源的数量
 	WatchListPageSize int64
 }
 
@@ -87,14 +96,16 @@ type ProcessFunc func(obj interface{}) error
 
 // `*controller` implements Controller
 type controller struct {
-	config         Config
-	reflector      *Reflector
-	reflectorMutex sync.RWMutex
-	clock          clock.Clock
+	config         Config // 配置
+	reflector      *Reflector // reflector
+	reflectorMutex sync.RWMutex // reflector的读写锁
+	clock          clock.Clock // 时钟
 }
 
 // Controller is a low-level controller that is parameterized by a
 // Config and used in sharedIndexInformer.
+// Controller的抽象
+// 把Reflector、DeltaFIFO组合起来形成一个相对固定的、标准的处理流程
 type Controller interface {
 	// Run does two things.  One is to construct and run a Reflector
 	// to pump objects/notifications from the Config's ListerWatcher
@@ -102,13 +113,18 @@ type Controller interface {
 	// on that Queue.  The other is to repeatedly Pop from the Queue
 	// and process with the Config's ProcessFunc.  Both of these
 	// continue until `stopCh` is closed.
+	//  核心流程函数
 	Run(stopCh <-chan struct{})
 
 	// HasSynced delegates to the Config's Queue
+	// apiserver中的对象是否已经同步到了Store中
+	// 可调用DeltaFIFO. HasSynced()实现
 	HasSynced() bool
 
 	// LastSyncResourceVersion delegates to the Reflector when there
 	// is one, otherwise returns the empty string
+	// 最新的资源版本号
+	// 通过Reflector实现
 	LastSyncResourceVersion() string
 }
 
@@ -124,12 +140,15 @@ func New(c *Config) Controller {
 // Run begins processing items, and will continue until a value is sent down stopCh or it is closed.
 // It's an error to call Run more than once.
 // Run blocks; call via go.
+// contoller 业务逻辑的实现
 func (c *controller) Run(stopCh <-chan struct{}) {
 	defer utilruntime.HandleCrash()
+	// 处理退出信号的协程
 	go func() {
 		<-stopCh
 		c.config.Queue.Close()
 	}()
+	// 创建reflector
 	r := NewReflector(
 		c.config.ListerWatcher,
 		c.config.ObjectType,
@@ -143,23 +162,30 @@ func (c *controller) Run(stopCh <-chan struct{}) {
 		r.watchErrorHandler = c.config.WatchErrorHandler
 	}
 
+	// 记录reflector
 	c.reflectorMutex.Lock()
 	c.reflector = r
 	c.reflectorMutex.Unlock()
 
+	// 所有被group管理的协程退出调用Wait()才会退出,否则阻塞
 	var wg wait.Group
-
+	// StartWithChannel()会启动协程执行Reflector.Run()，同时接收到stopCh信号就会退出协程
 	wg.StartWithChannel(stopCh, r.Run)
 
+	// wait.Until()周期性的调用c.processLoop()，这里是1秒
+	// 不用担心调用频率太高，正常情况下c.processLoop是不会返回的，
+	// 除非遇到了解决不了的错误，因为他是个循环
 	wait.Until(c.processLoop, time.Second, stopCh)
 	wg.Wait()
 }
 
 // Returns true once this controller has completed an initial resource listing
+// 调用DeltaFIFO的HasSynced
 func (c *controller) HasSynced() bool {
 	return c.config.Queue.HasSynced()
 }
 
+// 调用reflector的实现
 func (c *controller) LastSyncResourceVersion() string {
 	c.reflectorMutex.RLock()
 	defer c.reflectorMutex.RUnlock()
@@ -180,11 +206,16 @@ func (c *controller) LastSyncResourceVersion() string {
 // also be helpful.
 func (c *controller) processLoop() {
 	for {
+		// 从队列中弹出一个对象，然后处理它,这才是最主要的部分，
+		// 这个c.config.Process是构造Controller的时候通过Config传进来的
+		// 所以这个读者要特别注意了，这个函数其实是ShareInformer传入，是SharedInformer的重点
 		obj, err := c.config.Queue.Pop(PopProcessFunc(c.config.Process))
 		if err != nil {
+			// FIFO关闭
 			if err == ErrFIFOClosed {
 				return
 			}
+			// 重试
 			if c.config.RetryOnError {
 				// This is the safe way to re-enqueue.
 				c.config.Queue.AddIfNotPresent(obj)

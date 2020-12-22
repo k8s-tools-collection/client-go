@@ -249,7 +249,9 @@ var (
 
 // resyncChan returns a channel which will receive something when a resync is
 // required, and a cleanup function.
+// 获取resync定时器
 func (r *Reflector) resyncChan() (<-chan time.Time, func() bool) {
+	// 不用定时同步，返回永久的超时定时器
 	if r.resyncPeriod == 0 {
 		return neverExitWatch, func() bool { return false }
 	}
@@ -257,6 +259,7 @@ func (r *Reflector) resyncChan() (<-chan time.Time, func() bool) {
 	// always fail so we end up listing frequently. Then, if we don't
 	// manually stop the timer, we could end up with many timers active
 	// concurrently.
+	// 构建定时器
 	t := r.clock.NewTimer(r.resyncPeriod)
 	return t.C(), t.Stop
 }
@@ -593,6 +596,7 @@ func (r *Reflector) LastSyncResourceVersion() string {
 func (r *Reflector) setLastSyncResourceVersion(v string) {
 	r.lastSyncResourceVersionMutex.Lock()
 	defer r.lastSyncResourceVersionMutex.Unlock()
+	// 设置已经获取到资源的最新版本
 	r.lastSyncResourceVersion = v
 }
 

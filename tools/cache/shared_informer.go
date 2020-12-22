@@ -134,6 +134,8 @@ type SharedInformer interface {
 	// AddEventHandler adds an event handler to the shared informer using the shared informer's resync
 	// period.  Events to a single handler are delivered sequentially, but there is no coordination
 	// between different handlers.
+	// 添加事件资源处理器，ResourceEventHandler 定义与controller.go中
+	// 注册回调函数，当资源有变化通知调用方，可以支持多个handler
 	AddEventHandler(handler ResourceEventHandler)
 	// AddEventHandlerWithResyncPeriod adds an event handler to the
 	// shared informer with the requested resync period; zero means
@@ -149,13 +151,17 @@ type SharedInformer interface {
 	// between any two resyncs may be longer than the nominal period
 	// because the implementation takes time to do work and there may
 	// be competing load and scheduling noise.
+	// 添加需要周期同步的处理器
 	AddEventHandlerWithResyncPeriod(handler ResourceEventHandler, resyncPeriod time.Duration)
 	// GetStore returns the informer's local cache as a Store.
+	// 获取store的接口
 	GetStore() Store
 	// GetController is deprecated, it does nothing useful
+	// 获取controller
 	GetController() Controller
 	// Run starts and runs the shared informer, returning after it stops.
 	// The informer will be stopped when stopCh is closed.
+	// informer的核心逻辑
 	Run(stopCh <-chan struct{})
 	// HasSynced returns true if the shared informer's store has been
 	// informed by at least one full LIST of the authoritative state

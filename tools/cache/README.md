@@ -1,1 +1,13 @@
 Queue是在Store基础上扩展了Pop接口可以让对象有序的弹出，Indexer是在Store基础上建立了索引，可以快速检索对象
+
+Reflector利用apiserver的client列举全量对象(版本为0以后的对象全部列举出来)
+将全量对象采用Replace()接口同步到DeltaFIFO中，并且更新资源的版本号，这个版本号后续会用到；
+开启一个协程定时执行resync，如果没有设置定时同步则不会执行，同步就是把全量对象以同步事件的方式通知出去；
+通过apiserver的client监控(watch)资源，监控的当前资源版本号以后的对象，因为之前的都已经获取到了；
+一旦有对象发生变化，那么就会根据变化的类型(新增、更新、删除)调用DeltaFIFO的相应接口，产生一个相应的对象Delta，同时更新当前资源的版本
+
+controller把Reflector、DeltaFIFO组合起来形成一个相对固定的、标准的处理流程。
+
+Controller自己构造Reflector获取对象，Reflector作为DeltaFIFO生产者持续监控apiserver的资源变化并推送到队列中。
+Controller的Run()应该是队列的消费者，从队列中弹出对象并调用Process()处理。所以Controller相比于Reflector因为队列的加持表现为每次有资源变化就会调用一次使用者定义的处理函数。
+
