@@ -23,48 +23,68 @@ import (
 )
 
 // Interface provides access to all the informers in this group version.
+// 抽象
 type Interface interface {
+	// 获取ComponentStatusInformer
 	// ComponentStatuses returns a ComponentStatusInformer.
 	ComponentStatuses() ComponentStatusInformer
 	// ConfigMaps returns a ConfigMapInformer.
+	// 获取ConfigMapInformer
 	ConfigMaps() ConfigMapInformer
 	// Endpoints returns a EndpointsInformer.
+	// 获取EndpointsInformer
 	Endpoints() EndpointsInformer
 	// Events returns a EventInformer.
+	// 获取EventInformer
 	Events() EventInformer
 	// LimitRanges returns a LimitRangeInformer.
+	// 获取LimitRangeInformer
 	LimitRanges() LimitRangeInformer
 	// Namespaces returns a NamespaceInformer.
+	// 获取NamespaceInformer
 	Namespaces() NamespaceInformer
 	// Nodes returns a NodeInformer.
+	// 获取NodeInformer
 	Nodes() NodeInformer
 	// PersistentVolumes returns a PersistentVolumeInformer.
+	// 获取PersistentVolumeInformer
 	PersistentVolumes() PersistentVolumeInformer
 	// PersistentVolumeClaims returns a PersistentVolumeClaimInformer.
+	// 获取PersistentVolumeClaimInformer
 	PersistentVolumeClaims() PersistentVolumeClaimInformer
 	// Pods returns a PodInformer.
+	// 获取PodInformer
 	Pods() PodInformer
 	// PodTemplates returns a PodTemplateInformer.
+	// 获取PodTemplateInformer
 	PodTemplates() PodTemplateInformer
 	// ReplicationControllers returns a ReplicationControllerInformer.
+	// 获取ReplicationControllerInformer
 	ReplicationControllers() ReplicationControllerInformer
 	// ResourceQuotas returns a ResourceQuotaInformer.
+	// 获取ResourceQuotaInformer
 	ResourceQuotas() ResourceQuotaInformer
 	// Secrets returns a SecretInformer.
+	// 获取SecretInformer
 	Secrets() SecretInformer
 	// Services returns a ServiceInformer.
+	// 获取ServiceInformer
 	Services() ServiceInformer
 	// ServiceAccounts returns a ServiceAccountInformer.
+	// 获取ServiceAccountInformer
 	ServiceAccounts() ServiceAccountInformer
 }
 
+// 抽象接口的实现
 type version struct {
+	// 工厂的对象指针
 	factory          internalinterfaces.SharedInformerFactory
 	namespace        string
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
 // New returns a new Interface.
+// Core分组V1版本的构造函数
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
@@ -115,7 +135,9 @@ func (v *version) PersistentVolumeClaims() PersistentVolumeClaimInformer {
 }
 
 // Pods returns a PodInformer.
+// v1.Interface的实现
 func (v *version) Pods() PodInformer {
+	// 返回了podInformer的对象，podInformer是PodInformer 实现类
 	return &podInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
