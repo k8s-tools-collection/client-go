@@ -62,30 +62,37 @@ type ThreadSafeStore interface {
 
 // threadSafeMap implements ThreadSafeStore
 // 实现ThreadSafeStore的接口
+// index对象键属于索引键，indices索引键属于分类，
+// indexer分类计算出索引键
+// items 存储对象键->对象
 type threadSafeMap struct {
 	lock  sync.RWMutex // 读写锁,读多写少
 	items map[string]interface{} // 存储对象的map，对象键:对象
 
 	// indexers maps a name to an IndexFunc
 	// 用于按类计算索引键的函数map 分类名:索引键的计算函数
-	indexers Indexers
+	indexers Indexers // map 分类->对象的索引键计算函数
 	// indices maps a name to an Index
 	// 快速索引表，通过索引可以快速找到对象键，然后再从items中取出对象
 	// 索引键是用于对象快速查找的，经过索引建在map中排序查找会更快
 	// 对象键是为对象在存储中的唯一命名的，对象是通过名字+对象的方式存储的
-	indices Indices
+	indices Indices // 分类->索引
 }
 
 /************** 存储相关的函数 ******************/
 // 依据对象键存储对象
+//
 func (c *threadSafeMap) Add(key string, obj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	// 更新存储
 	// 把老的对象取出来
 	oldObject := c.items[key]
 	// 写入新的对象
 	c.items[key] = obj
-	// 由于对象的添加就要更新索引
+
+
+	// 要更新索引(替换操作)
 	c.updateIndices(oldObject, obj, key)
 }
 
@@ -93,8 +100,10 @@ func (c *threadSafeMap) Add(key string, obj interface{}) {
 func (c *threadSafeMap) Update(key string, obj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	// 依据对象键获取老的对象
 	oldObject := c.items[key]
 	c.items[key] = obj
+
 	c.updateIndices(oldObject, obj, key)
 }
 
@@ -296,7 +305,7 @@ func (c *threadSafeMap) AddIndexers(newIndexers Indexers) error {
 	oldKeys := sets.StringKeySet(c.indexers)
 	newKeys := sets.StringKeySet(newIndexers)
 
-	// 检测 old是否存在new keys
+	// 检测 old是否存在new keys()
 	if oldKeys.HasAny(newKeys.List()...) {
 		return fmt.Errorf("indexer conflict: %v", oldKeys.Intersection(newKeys))
 	}
@@ -321,12 +330,12 @@ func (c *threadSafeMap) updateIndices(oldObj interface{}, newObj interface{}, ke
 	}
 	// 遍历所有的索引函数，为对象在所有的索引分类中创建索引键
 	for name, indexFunc := range c.indexers {
-		// 计算索引键
+		// 计算name对应的索引键
 		indexValues, err := indexFunc(newObj)
 		if err != nil {
 			panic(fmt.Errorf("unable to calculate an index entry for key %q on index %q: %v", key, name, err))
 		}
-		// 获取索引分类的所有索引
+		// 获取索引分类的所有索引map
 		index := c.indices[name]
 		if index == nil {
 			// 这个索引分类还没有任何索引
@@ -352,6 +361,7 @@ func (c *threadSafeMap) updateIndices(oldObj interface{}, newObj interface{}, ke
 // deleteFromIndices removes the object from each of the managed indexes
 // it is intended to be called from a function that already has a lock on the cache
 // 删除对象索引
+// 传入对象，对象键
 func (c *threadSafeMap) deleteFromIndices(obj interface{}, key string) {
 	// 遍历索引函数
 	for name, indexFunc := range c.indexers {
@@ -361,7 +371,7 @@ func (c *threadSafeMap) deleteFromIndices(obj interface{}, key string) {
 			panic(fmt.Errorf("unable to calculate an index entry for key %q on index %q: %v", key, name, err))
 		}
 
-		// 获取索引分类的所有索引
+		// 获取索引分类下的所有索引
 		index := c.indices[name]
 		if index == nil {
 			continue
@@ -390,6 +400,7 @@ func (c *threadSafeMap) Resync() error {
 }
 
 // NewThreadSafeStore creates a new instance of ThreadSafeStore.
+// threadSafeStore的构造函数
 func NewThreadSafeStore(indexers Indexers, indices Indices) ThreadSafeStore {
 	return &threadSafeMap{
 		items:    map[string]interface{}{},

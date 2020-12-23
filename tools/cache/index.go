@@ -23,11 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-//Indexer保存了来自apiServer的资源。
-//使用listWatch方式来维护资源的增量变化。
-//通过这种方式可以减小对apiServer的访问，
-//减轻apiServer端的压力
-// cache实现Indexer的接口
+
 // Indexer extends Store with multiple indices and restricts each
 // accumulator to simply hold the current object (and be empty after
 // Delete).
@@ -37,6 +33,8 @@ import (
 // 2. a name of an index, and
 // 3. an "indexed value", which is produced by an IndexFunc and
 //    can be a field value or any other string computed from the object.
+// Indexer保存了来自apiServer的资源,使用listWatch方式来维护资源的增量变化。
+// 通过这种方式可以减小对apiServer的访问,减轻apiServer端的压力,cache实现Indexer的接口
 type Indexer interface {
 	// 继承store的接口，Store中定义了对对象的增删改查等方法
 	Store
@@ -70,7 +68,7 @@ type Indexer interface {
 }
 
 // IndexFunc knows how to compute the set of indexed values for an object.
-// IndexFunc知道如何计算对象的一组索引值,传入对象，输出字符串索引。
+// 按照分类计算对象的索引函数，返回索引键的切片
 type IndexFunc func(obj interface{}) ([]string, error)
 
 // IndexFuncToKeyFuncAdapter adapts an indexFunc to a keyFunc.  This is only useful if your index function returns
@@ -109,12 +107,15 @@ func MetaNamespaceIndexFunc(obj interface{}) ([]string, error) {
 
 // Index maps the indexed value to a set of keys in the store that match on that value
 // 每种计算索引的方式会输出多个索引,而多个目标可能会算出相同索引，所以就有了这个类型
+// [索引键]->[对象键]
 type Index map[string]sets.String //  sets.String map[string]Empty string,对象键，Empty为对象
 
 // Indexers maps a name to a IndexFunc
 // 计算索引的方式:计算索引的函数有很多，用名字分类
+// [分类名][索引键的计算函数]
 type Indexers map[string]IndexFunc
 
 // Indices maps a name to an Index
 // 索引计算索引的方式:由于有多种计算索引的方式，那就又要按照计算索引的方式组织索引
+// 分类->索引键->集合 [分类][索引键][对象键]
 type Indices map[string]Index
