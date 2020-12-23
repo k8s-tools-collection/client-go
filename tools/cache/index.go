@@ -44,13 +44,12 @@ type Indexer interface {
 	// intersects the set of indexed values of the given object, for
 	// the named index
 	// indexName索引类名,obj是对象,计算obj在indexName类中的索引索引键,
-	// 通过索引键把所有的对象取出来,即获取符合obj特征的所有对象,
-	// 所谓的特征就是对象在索引类中的索引键
+	// 通过索引键把所有的对象取出来,即获取符合obj特征的所有对象,特征就是对象在索引类中的索引键
 	Index(indexName string, obj interface{}) ([]interface{}, error)
 	// IndexKeys returns the storage keys of the stored objects whose
 	// set of indexed values for the named index includes the given
 	// indexed value
-	// indexKey是indexName索引类中一个索引键，函数返回indexKey指定的所有对象键
+	// indexedValue是indexName索引类中一个索引键，函数返回indexKey指定的所有对象键
 	// 这个对象键是Indexer内唯一的，在添加的时候会计算
 	IndexKeys(indexName, indexedValue string) ([]string, error)
 	// ListIndexFuncValues returns all the indexed values of the given index
