@@ -134,7 +134,7 @@ type SharedInformer interface {
 	// AddEventHandler adds an event handler to the shared informer using the shared informer's resync
 	// period.  Events to a single handler are delivered sequentially, but there is no coordination
 	// between different handlers.
-	// 添加事件资源处理器，ResourceEventHandler 定义与controller.go中
+	// 添加事件资源处理器，ResourceEventHandler定义于controller.go中
 	// 注册回调函数，当资源有变化通知调用方，可以支持多个handler
 	AddEventHandler(handler ResourceEventHandler)
 	// AddEventHandlerWithResyncPeriod adds an event handler to the
@@ -200,7 +200,7 @@ type SharedIndexInformer interface {
 	// 继承sharedinformer
 	SharedInformer
 	// AddIndexers add indexers to the informer before it starts.
-	// 扩展indexer相关的接口
+	// 添加扩展indexer相关的接口
 	AddIndexers(indexers Indexers) error
 	GetIndexer() Indexer
 }
@@ -251,6 +251,7 @@ func NewSharedIndexInformer(lw ListerWatcher, exampleObject runtime.Object, defa
 }
 
 // InformerSynced is a function that can be used to determine if an informer has synced.  This is useful for determining if caches have synced.
+// InformerSynced是可用于确定informer是否已同步的函数。对于确定缓存是否已同步非常有用
 type InformerSynced func() bool
 
 const (
@@ -323,8 +324,7 @@ type sharedIndexInformer struct {
 	processor             *sharedProcessor
 	// CacheMutationDetector一个调试工具，用来发现对象突变的
 	// 实现方法:DeltaFIFO弹出的对象在处理前先备份(深度拷贝)一份,
-	// 然后定期比对两个对象是否相同,如果不同那就报警,
-	// 说明处理过程中有人修改过对象，这个功能默认是关闭
+	// 然后定期比对两个对象是否相同,如果不同那就报警,处理过程中有人修改过对象，这个功能默认是关闭
 	cacheMutationDetector MutationDetector
 
 	// reflector 使用
@@ -678,21 +678,21 @@ type sharedProcessor struct {
 	syncingListeners []*processorListener
 	// 时钟
 	clock            clock.Clock
-	// 前面讲过了processorListener每个需要两个协程，
-	// 用wait.Group来管理所有处理器的协程，都能退出
+	// processorListener每个需要两个协程,用wait.Group来管理所有处理器的协程，都能退出
 	wg               wait.Group
 }
 
-// 添加监听器，sharedIndexInformer.AddEventHandler()就会调用这个函数实现监听器的添加
+// 添加处理器,sharedIndexInformer.AddEventHandler()就会调用这个函数实现处理器的添加
 func (p *sharedProcessor) addListener(listener *processorListener) {
 	// 加锁
 	p.listenersLock.Lock()
 	defer p.listenersLock.Unlock()
 
-	// 将监听器加入数组
+	// 将处理器加入数组
 	p.addListenerLocked(listener)
-	//  wait.Group启动两个协程processorListener.run,processorListener.pop
-	//  p.listenersStarted,sharedProcessor在启动前、后都可以添加监听器器
+	//  wait.Group启动两个协程
+	//  processorListener.run,processorListener.pop
+	//  p.listenersStarted,sharedProcessor在启动前、后都可以添加处理器
 	if p.listenersStarted {
 		p.wg.Start(listener.run)
 		p.wg.Start(listener.pop)
@@ -794,9 +794,9 @@ func (p *sharedProcessor) resyncCheckPeriodChanged(resyncCheckPeriod time.Durati
 //
 // processorListener also keeps track of the adjusted requested resync
 // period of the listener.
-// 实现了事件的缓冲和处理，此处的处理就是使用者传入的函数。
-// 在没有事件的时候可以阻塞处理器，当事件较多是可以把事件缓冲起来，实现了事件分发器与处理器的异步处理
-// run()和pop()函数是sharedProcessor启动的协程调用
+// 实现了事件的缓冲和处理，处理是使用者传入的函数实现。
+// 在没有事件的时候可以阻塞处理器，当事件较多是可以把事件缓冲起来，
+// 实现了事件分发器与处理器的异步处理,run()和pop()函数是sharedProcessor启动的协程调用
 type processorListener struct {
 	// 这四个变量实现了事件的输入、缓冲、处理，事件就是apiserver资源的变化
 	nextCh chan interface{}

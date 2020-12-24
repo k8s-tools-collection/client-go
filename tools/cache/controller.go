@@ -65,7 +65,7 @@ type Config struct {
 
 	// ShouldResync is periodically used by the reflector to determine
 	// whether to Resync the Queue. If ShouldResync is `nil` or
-	// returns true, it means the reflector should proceed with the
+	// returns true, it means the reflector should proceed with thex
 	// resync.
 	// Reflector在全量更新的时候会调用该函数询问
 	ShouldResync ShouldResyncFunc
@@ -119,13 +119,12 @@ type Controller interface {
 
 	// HasSynced delegates to the Config's Queue
 	// apiserver中的对象是否已经同步到了Store中
-	// 可调用DeltaFIFO. HasSynced()实现
+	// 可调用DeltaFIFO.HasSynced()实现
 	HasSynced() bool
 
 	// LastSyncResourceVersion delegates to the Reflector when there
 	// is one, otherwise returns the empty string
-	// 最新的资源版本号
-	// 通过Reflector实现
+	// 最新的资源版本号,通过Reflector实现
 	LastSyncResourceVersion() string
 }
 
