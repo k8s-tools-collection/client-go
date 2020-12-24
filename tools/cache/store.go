@@ -255,6 +255,7 @@ func (c *cache) GetByKey(key string) (item interface{}, exists bool, err error) 
 // Replace will delete the contents of 'c', using instead the given list.
 // 'c' takes ownership of the list, you should not reference the list again
 // after calling this function.
+// 替换存储中item
 func (c *cache) Replace(list []interface{}, resourceVersion string) error {
 	items := make(map[string]interface{}, len(list))
 	for _, item := range list {

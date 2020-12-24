@@ -90,12 +90,14 @@ type DeltaFIFOOptions struct {
 	// exposed in the returned DeltaFIFO's KeyOf() method, with additional
 	// handling around deleted objects and queue state).
 	// Optional, the default is MetaNamespaceKeyFunc.
+	// 对象键生成
 	KeyFunction KeyFunc
 
 	// KnownObjects is expected to return a list of keys that the consumer of
 	// this queue "knows about". It is used to decide which items are missing
 	// when Replace() is called; 'Deleted' deltas are produced for the missing items.
 	// KnownObjects may be nil if you can tolerate missing deletions on Replace().
+	// 实质上indexer
 	KnownObjects KeyListerGetter
 
 	// EmitDeltaTypeReplaced indicates that the queue consumer
@@ -305,7 +307,7 @@ func (f *DeltaFIFO) Delete(obj interface{}) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	f.populated = true
-	// !!! knownObjects就是Indexer，里面存有已知全部的对象
+	// knownObjects就是Indexer，里面存有已知全部的对象
 	if f.knownObjects == nil {
 		// 没有Indexer的条件下只能通过自己存储的对象查一下
 		if _, exists := f.items[id]; !exists {

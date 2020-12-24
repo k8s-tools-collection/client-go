@@ -76,8 +76,7 @@ type Reflector struct {
 	// initConnBackoffManager manages backoff the initial connection with the Watch calll of ListAndWatch.
 	initConnBackoffManager wait.BackoffManager
 
-	// 重新同步的周期，很多人肯定认为这个同步周期指的是从apiserver的同步周期
-	// 其实这里面同步指的是shared_informer使用者需要定期同步全量对象
+	// 重新同步的周期,同步指的是shared_informer使用者需要定期同步全量对象
 	resyncPeriod time.Duration
 	// ShouldResync is invoked periodically and whenever it returns `true` the Store's Resync operation is invoked
     // 是否需要同步
@@ -133,6 +132,7 @@ type ResourceVersionUpdater interface {
 type WatchErrorHandler func(r *Reflector, err error)
 
 // DefaultWatchErrorHandler is the default implementation of WatchErrorHandler
+// WatchErrorHandler的实现
 func DefaultWatchErrorHandler(r *Reflector, err error) {
 	switch {
 	case isExpiredError(err):
@@ -178,6 +178,7 @@ func NewReflector(lw ListerWatcher, expectedType interface{}, store Store, resyn
 }
 
 // NewNamedReflector same as NewReflector, but with a specified name for logging
+// 构造函数
 func NewNamedReflector(name string, lw ListerWatcher, expectedType interface{}, store Store, resyncPeriod time.Duration) *Reflector {
 	realClock := &clock.RealClock{}
 	r := &Reflector{
@@ -251,7 +252,7 @@ var (
 // required, and a cleanup function.
 // 获取resync定时器
 func (r *Reflector) resyncChan() (<-chan time.Time, func() bool) {
-	// 不用定时同步，返回永久的超时定时器
+	// 周期为0，不用定时同步，返回永久的超时定时器
 	if r.resyncPeriod == 0 {
 		return neverExitWatch, func() bool { return false }
 	}

@@ -36,6 +36,7 @@ import (
 // .
 
 // Config contains all the settings for one of these low-level controllers.
+// Config包含这些低级控制器之一的所有设置。
 type Config struct {
 	// The queue for your objects - has to be a DeltaFIFO due to
 	// assumptions in the implementation. Your Process() function
@@ -48,7 +49,7 @@ type Config struct {
 	ListerWatcher
 
 	// Something that can process a popped Deltas.
-	// 在调用DeltaFIFO.Pop()使用，弹出对象要如何处理
+	// 在调用DeltaFIFO.Pop()使用，用于处理弹出对象
 	Process ProcessFunc
 
 	// ObjectType is an example object of the type this controller is
@@ -95,6 +96,7 @@ type ShouldResyncFunc func() bool
 type ProcessFunc func(obj interface{}) error
 
 // `*controller` implements Controller
+// controller 抽象的实现
 type controller struct {
 	config         Config // 配置
 	reflector      *Reflector // reflector
@@ -104,8 +106,7 @@ type controller struct {
 
 // Controller is a low-level controller that is parameterized by a
 // Config and used in sharedIndexInformer.
-// Controller的抽象
-// 把Reflector、DeltaFIFO组合起来形成一个相对固定的、标准的处理流程
+// Controller的抽象,把Reflector、DeltaFIFO组合起来形成一个相对固定的、标准的处理流程
 type Controller interface {
 	// Run does two things.  One is to construct and run a Reflector
 	// to pump objects/notifications from the Config's ListerWatcher
