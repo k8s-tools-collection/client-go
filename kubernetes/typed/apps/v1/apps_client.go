@@ -64,6 +64,7 @@ func NewForConfig(c *rest.Config) (*AppsV1Client, error) {
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
 	}
+	// 生成客户端
 	client, err := rest.RESTClientFor(&config)
 	if err != nil {
 		return nil, err

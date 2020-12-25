@@ -171,6 +171,7 @@ func NewDefaultClientConfigLoadingRules() *ClientConfigLoadingRules {
 // non-conflicting entries from the second file's "red-user" are discarded.
 // Relative paths inside of the .kubeconfig files are resolved against the .kubeconfig file's parent folder
 // and only absolute file paths are returned.
+// 加载kubeconfig 的配置信息
 func (rules *ClientConfigLoadingRules) Load() (*clientcmdapi.Config, error) {
 	if err := rules.Migrate(); err != nil {
 		return nil, err
@@ -186,9 +187,11 @@ func (rules *ClientConfigLoadingRules) Load() (*clientcmdapi.Config, error) {
 		if _, err := os.Stat(rules.ExplicitPath); os.IsNotExist(err) {
 			return nil, err
 		}
+		//通过文件路径获取kubeconfig配置信息
 		kubeConfigFiles = append(kubeConfigFiles, rules.ExplicitPath)
 
 	} else {
+		// 通过环境变量获取kubeconfig配置信息
 		kubeConfigFiles = append(kubeConfigFiles, rules.Precedence...)
 	}
 
@@ -200,6 +203,7 @@ func (rules *ClientConfigLoadingRules) Load() (*clientcmdapi.Config, error) {
 			continue
 		}
 
+		// 读取数据并把读取的数据反序列 化到Config对象中
 		config, err := LoadFromFile(filename)
 
 		if os.IsNotExist(err) {
@@ -221,6 +225,7 @@ func (rules *ClientConfigLoadingRules) Load() (*clientcmdapi.Config, error) {
 		klog.Warningf("Config not found: %s", strings.Join(missingList, ", "))
 	}
 
+	// 合并配置
 	// first merge all of our maps
 	mapConfig := clientcmdapi.NewConfig()
 
@@ -252,6 +257,7 @@ func (rules *ClientConfigLoadingRules) Load() (*clientcmdapi.Config, error) {
 
 // Migrate uses the MigrationRules map.  If a destination file is not present, then the source file is checked.
 // If the source file is present, then it is copied to the destination file BEFORE any further loading happens.
+// 合并配置信息
 func (rules *ClientConfigLoadingRules) Migrate() error {
 	if rules.MigrationRules == nil {
 		return nil
@@ -406,6 +412,7 @@ func Load(data []byte) (*clientcmdapi.Config, error) {
 	if len(data) == 0 {
 		return config, nil
 	}
+	// 执行反序列化操作
 	decoded, _, err := clientcmdlatest.Codec.Decode(data, &schema.GroupVersionKind{Version: clientcmdlatest.Version, Kind: "Config"}, config)
 	if err != nil {
 		return nil, err

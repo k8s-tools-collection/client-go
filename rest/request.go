@@ -872,6 +872,7 @@ func (r *Request) request(ctx context.Context, fn func(*http.Request, *http.Resp
 	for {
 
 		url := r.URL().String()
+		//调用Go标准库net/http进行request构建
 		req, err := http.NewRequest(r.verb, url, r.body)
 		if err != nil {
 			return err
@@ -888,6 +889,7 @@ func (r *Request) request(ctx context.Context, fn func(*http.Request, *http.Resp
 				return err
 			}
 		}
+		// Do发送request请求并接受resp
 		resp, err := client.Do(req)
 		updateURLMetrics(r, resp, err)
 		if err != nil {
@@ -926,6 +928,7 @@ func (r *Request) request(ctx context.Context, fn func(*http.Request, *http.Resp
 				if resp.ContentLength <= maxBodySlurpSize {
 					io.Copy(ioutil.Discard, &io.LimitedReader{R: resp.Body, N: maxBodySlurpSize})
 				}
+				//Body.close()在defer函数中，保证函数退出时，对其进行关闭，防止内存溢出
 				resp.Body.Close()
 			}()
 
@@ -944,6 +947,7 @@ func (r *Request) request(ctx context.Context, fn func(*http.Request, *http.Resp
 				r.backoff.Sleep(time.Duration(seconds) * time.Second)
 				return false
 			}
+			//fn函数即为之前传入的transformResponse函数，将结果转为资源对象
 			fn(req, resp)
 			return true
 		}()
@@ -987,6 +991,7 @@ func (r *Request) DoRaw(ctx context.Context) ([]byte, error) {
 }
 
 // transformResponse converts an API response into a structured API object
+// 解析result
 func (r *Request) transformResponse(resp *http.Response, req *http.Request) Result {
 	var body []byte
 	if resp.Body != nil {

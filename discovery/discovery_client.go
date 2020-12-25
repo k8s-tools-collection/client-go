@@ -155,6 +155,7 @@ func apiVersionsToAPIGroup(apiVersions *metav1.APIVersions) (apiGroup metav1.API
 // preferred version.
 func (d *DiscoveryClient) ServerGroups() (apiGroupList *metav1.APIGroupList, err error) {
 	// Get the groupVersions exposed at /api
+	// 在/api中获取groupVersions并将结构放于metav1.APIVersions
 	v := &metav1.APIVersions{}
 	err = d.restClient.Get().AbsPath(d.LegacyPrefix).Do(context.TODO()).Into(v)
 	apiGroup := metav1.APIGroup{}
@@ -166,6 +167,7 @@ func (d *DiscoveryClient) ServerGroups() (apiGroupList *metav1.APIGroupList, err
 	}
 
 	// Get the groupVersions exposed at /apis
+	// 在/apis中获取groupVersions并将结构放于metav1.APIGroupList
 	apiGroupList = &metav1.APIGroupList{}
 	err = d.restClient.Get().AbsPath("/apis").Do(context.TODO()).Into(apiGroupList)
 	if err != nil && !errors.IsNotFound(err) && !errors.IsForbidden(err) {
@@ -177,6 +179,7 @@ func (d *DiscoveryClient) ServerGroups() (apiGroupList *metav1.APIGroupList, err
 	}
 
 	// prepend the group retrieved from /api to the list if not empty
+	//将api接口检索到的资源组信息合并到apiGroupList列表中
 	if len(v.Versions) != 0 {
 		apiGroupList.Groups = append([]metav1.APIGroup{apiGroup}, apiGroupList.Groups...)
 	}

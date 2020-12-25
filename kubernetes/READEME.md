@@ -1,0 +1,2 @@
+ClientSet在RESTClient的基础上封装Resource和Version的管理方法,每个resource当作一个客户端，ClientSet是多个客户端的的集合，每个Resourcehe
+ Version均以函数的方式暴露
