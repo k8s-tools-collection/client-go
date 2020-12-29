@@ -208,7 +208,7 @@ func (c *controller) processLoop() {
 	for {
 		// 从队列中弹出一个对象，然后处理它,这才是最主要的部分，
 		// 这个c.config.Process是构造Controller的时候通过Config传进来的
-		// 所以这个读者要特别注意了，这个函数其实是ShareInformer传入，是SharedInformer的重点
+		// 这个函数其实是ShareInformer传入，是SharedInformer的重点
 		obj, err := c.config.Queue.Pop(PopProcessFunc(c.config.Process))
 		if err != nil {
 			// FIFO关闭

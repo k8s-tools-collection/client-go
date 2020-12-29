@@ -237,6 +237,7 @@ func (c *cache) AddIndexers(newIndexers Indexers) error {
 
 // Get returns the requested item, or sets exists=false.
 // Get is completely threadsafe as long as you treat all items as immutable.
+// obj 获取indexer中的数据
 func (c *cache) Get(obj interface{}) (item interface{}, exists bool, err error) {
 	key, err := c.keyFunc(obj)
 	if err != nil {

@@ -167,6 +167,7 @@ func NewDeltaFIFOWithOptions(opts DeltaFIFOOptions) *DeltaFIFO {
 // threads, you could end up with multiple threads processing slightly
 // different versions of the same object.
 // DeltaFIFO一个按序的(先入先出)kubernetes对象变化的队列
+// KeyGetter,KeyLister,Queue,Store
 type DeltaFIFO struct {
 	// lock/cond protects access to 'items' and 'queue'.
 	// 读写锁，涉及到同时读写，读写锁性能要高
@@ -176,20 +177,18 @@ type DeltaFIFO struct {
 
 	// `items` maps a key to a Deltas.
 	// Each such Deltas has at least one Delta.
-	// 按照kv存储对象,但是存储的是对象的Deltas数组
+	// 按照kv存储对象,对象的键->但是存储的是对象的Deltas数组
 	items map[string]Deltas
 
 	// `queue` maintains FIFO order of keys for consumption in Pop().
 	// There are no duplicates in `queue`.
 	// A key is in `queue` if and only if it is in `items`.
-	// 实现先入先出，存储是对象的键
+	// map存储无序，实现先入先出，存储是对象的键
 	queue []string
 
 	/*******
-	判断是否已同步populated和initialPopulationCount
-	是否已同步指的是第一次从apiserver获取全量对象是否已经全部通知到外部，
-	也就是通过Pop()被取走。所谓的同步就是指apiserver的状态已经同步到缓存中了，
-	也就是Indexer中
+	判断是否已同步populated和initialPopulationCount指的是第一次从apiserver获取全量对象是否已经全部通知到外部，
+	即通过Pop()被取走。所谓的同步就是指apiserver的状态已经同步到缓存Indexer中
 	*******/
 	// populated is true if the first batch of items inserted by Replace() has been populated
 	// or Delete/Add/Update/AddIfNotPresent was called first.
@@ -243,7 +242,7 @@ func (f *DeltaFIFO) Close() {
 
 // KeyOf exposes f's keyFunc, but also detects the key of a Deltas object or
 // DeletedFinalStateUnknown objects.
-// 计算对象键
+// 计算对象键:如果Deltas不为空，以最新的计算的对象键？why
 func (f *DeltaFIFO) KeyOf(obj interface{}) (string, error) {
 	// 类型转换
 	if d, ok := obj.(Deltas); ok {
@@ -261,12 +260,11 @@ func (f *DeltaFIFO) KeyOf(obj interface{}) (string, error) {
 
 // HasSynced returns true if an Add/Update/Delete/AddIfNotPresent are called first,
 // or the first batch of items inserted by Replace() has been popped.
-// 是否全量同步
-// 同步就是全量内容已经进入Indexer，Indexer已经是系统中对象的全量快照
+// 是已否全量同步,同步就是全量内容已经进入Indexer,Indexer已经是系统中对象的全量快照
 func (f *DeltaFIFO) HasSynced() bool {
 	f.lock.Lock()
 	defer f.lock.Unlock()
-	//，一次同步全量对象后，并且全部Pop()出去才能算是同步完成
+	// 一次同步全量对象后，并且全部Pop()出去才能算是同步完成
 	return f.populated && f.initialPopulationCount == 0
 }
 
@@ -343,16 +341,16 @@ func (f *DeltaFIFO) Delete(obj interface{}) error {
 //
 // Important: obj must be a Deltas (the output of the Pop() function). Yes, this is
 // different from the Add/Update/Delete functions.
-// 添加不存在的对象
-// AddIfNotPresent()在Pop()函数中使用了一次，但是在调用这个接口的时候已经从map中删除了，
-// 用来保险的，因为Pop()本身就存在重入队列的可能，外部如果判断返回错误重入队列就可能会重复
+// 添加不存在的对象AddIfNotPresent()
+// 实现pop()操作的重入队列，在Pop()函数中使用了一次，外部如果判断返回错误，
+// 但是在调用这个接口的时候obj已经从map中删除，入队列就可能会重复需要判断
 func (f *DeltaFIFO) AddIfNotPresent(obj interface{}) error {
 	// 对象必须是Deltas数组，就是通过Pop（）弹出的对象
 	deltas, ok := obj.(Deltas)
 	if !ok {
 		return fmt.Errorf("object must be of type deltas, but got: %#v", obj)
 	}
-	// 计算对象键,多个Delta都是一个对象，所以用最新的就
+	// 计算对象键,多个Delta其实都是一个对象
 	id, err := f.KeyOf(deltas.Newest().Object)
 	if err != nil {
 		return KeyError{obj, err}
@@ -390,7 +388,7 @@ func dedupDeltas(deltas Deltas) Deltas {
 	if n < 2 {
 		return deltas
 	}
-	// 取出最后两个
+	// 每次add都会执行,所以只需要，取出最后两个
 	a := &deltas[n-1]
 	b := &deltas[n-2]
 	// 判断如果是重复的，那就删除这两个delta把合并后的追加到Deltas数组尾部
@@ -426,7 +424,7 @@ func isDeletionDup(a, b *Delta) *Delta {
 		return nil
 	}
 	// Do more sophisticated checks, or is this sufficient?
-	//做更复杂的检查，还是足够？
+	// 做更复杂的检查，还是足够？
 	// 理论上返回最后一个比较好，但是对象已经不再系统监控范围，前一个删除状态是好的
 	if _, ok := b.Object.(DeletedFinalStateUnknown); ok {
 		return a
@@ -522,7 +520,7 @@ func (f *DeltaFIFO) Get(obj interface{}) (item interface{}, exists bool, err err
 // GetByKey returns the complete list of deltas for the requested item,
 // setting exists=false if that list is empty.
 // You should treat the items returned inside the deltas as immutable.
-// 通过对象键获取对象
+// 通过对象键获取对象,对象为复制的对象，修改不会影响到原始数据
 func (f *DeltaFIFO) GetByKey(key string) (item interface{}, exists bool, err error) {
 	f.lock.RLock()
 	defer f.lock.RUnlock()
@@ -557,6 +555,7 @@ func (f *DeltaFIFO) IsClosed() bool {
 //
 // Pop returns a 'Deltas', which has a complete list of all the things
 // that happened to the object (deltas) while it was sitting in the queue.
+// 消费reflector的数据
 func (f *DeltaFIFO) Pop(process PopProcessFunc) (interface{}, error) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
@@ -590,7 +589,7 @@ func (f *DeltaFIFO) Pop(process PopProcessFunc) (interface{}, error) {
 		}
 		// 删除对象
 		delete(f.items, id)
-		// 处理对象的回调函数
+		// 处理对象的回调函数，由controller传入
 		err := process(item)
 		// 重入队列
 		if e, ok := err.(ErrRequeue); ok {
@@ -613,10 +612,9 @@ func (f *DeltaFIFO) Pop(process PopProcessFunc) (interface{}, error) {
 // of the Deltas associated with K.  Otherwise the pre-existing keys
 // are those listed by `f.knownObjects` and the current object of K is
 // what `f.knownObjects.GetByKey(K)` returns.
-// Replace实现对象的全量更新,定期触发,事件触发
-// DeltaFIFO对外输出的就是所有目标的增量变化
-// 所以每次全量更新都要判断对象是否已经删除，因为在全量更新前可能没有收到目标删除的请求。
-//这一点与cache不同，cache的Replace()相当于重建，因为cache就是对象全量的一种内存映射，所以Replace()就等于重建。
+// Replace实现对象的全量更新,可以定期触发,或事件触发,DeltaFIFO对外输出的所有目标的增量变化
+// 每次全量更新都要判断对象是否已经删除，因为在全量更新前可能没有收到目标删除的请求。
+// 这一点与cache不同，cache的Replace()相当于重建，因为cache就是对象全量的一种内存映射，所以Replace()就等于重建。
 func (f *DeltaFIFO) Replace(list []interface{}, resourceVersion string) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
@@ -847,6 +845,7 @@ func (d Deltas) Oldest() *Delta {
 
 // Newest is a convenience function that returns the newest delta, or
 // nil if there are no deltas.
+// 获取最后一个操作对象
 func (d Deltas) Newest() *Delta {
 	if n := len(d); n > 0 {
 		return &d[n-1]
@@ -857,6 +856,8 @@ func (d Deltas) Newest() *Delta {
 // copyDeltas returns a shallow copy of d; that is, it copies the slice but not
 // the objects in the slice. This allows Get/List to return an object that we
 // know won't be clobbered by a subsequent modifications.
+// copyDeltas返回d的浅表副本；也就是说，它复制切片，但不复制切片中的对象。
+// 这使Get / List返回一个我们知道不会因后续修改而破坏的对象
 func copyDeltas(d Deltas) Deltas {
 	d2 := make(Deltas, len(d))
 	copy(d2, d)

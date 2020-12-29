@@ -320,7 +320,7 @@ func (c *threadSafeMap) AddIndexers(newIndexers Indexers) error {
 // updateIndices must be called from a function that already has a lock on the cache
 // 当有对象添加或者更新是，需要更新索引，因为代用该函数的函数已经加锁了
 // 所以这个函数没有加锁操作
-// 老的队象，新的对象，对象键
+// 老的(被删除)队象，新的对象，对象键
 func (c *threadSafeMap) updateIndices(oldObj interface{}, newObj interface{}, key string) {
 	// if we got an old object, we need to remove it before we add it again
 	// 在添加和更新的时候都会获取老对象，如果存在老对象，那么就要删除老对象的索引
