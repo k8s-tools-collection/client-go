@@ -425,6 +425,7 @@ func newInformer(
 		FullResyncPeriod: resyncPeriod,
 		RetryOnError:     false,
 
+		// deltaFIFO的回调函数
 		Process: func(obj interface{}) error {
 			// from oldest to newest
 			for _, d := range obj.(Deltas) {

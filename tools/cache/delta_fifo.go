@@ -192,7 +192,7 @@ type DeltaFIFO struct {
 	*******/
 	// populated is true if the first batch of items inserted by Replace() has been populated
 	// or Delete/Add/Update/AddIfNotPresent was called first.
-	// 通过Replace()接口将第一批对象放入队列，活着第一次调用增删，改接口的标记
+	// 通过Replace()接口将第一批对象放入队列，或者第一次调用增删，改接口的标记
 	populated bool
 	// initialPopulationCount is the number of items inserted by the first call of Replace()
 	// 通过Replace()接口将第一批对象放入队列的对象数量
@@ -275,7 +275,7 @@ func (f *DeltaFIFO) HasSynced() bool {
 func (f *DeltaFIFO) Add(obj interface{}) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
-	// 队列第一次写入操作，将标志设为true
+	// 队列第一次写入操作,将标志设为true
 	f.populated = true
 	return f.queueActionLocked(Added, obj)
 }
@@ -305,7 +305,7 @@ func (f *DeltaFIFO) Delete(obj interface{}) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	f.populated = true
-	// knownObjects就是Indexer，里面存有已知全部的对象
+	// knownObjects就是Indexer,里面存有已知全部的对象
 	if f.knownObjects == nil {
 		// 没有Indexer的条件下只能通过自己存储的对象查一下
 		if _, exists := f.items[id]; !exists {
@@ -434,7 +434,7 @@ func isDeletionDup(a, b *Delta) *Delta {
 
 // queueActionLocked appends to the delta list for the object.
 // Caller must lock first.
-// 队列操作，把“动作”放入队列中，加锁
+// 队列操作，把“动作”放入deltas中，加锁
 func (f *DeltaFIFO) queueActionLocked(actionType DeltaType, obj interface{}) error {
 	// 计算对象键
 	id, err := f.KeyOf(obj)
@@ -528,6 +528,7 @@ func (f *DeltaFIFO) GetByKey(key string) (item interface{}, exists bool, err err
 	if exists {
 		// Copy item's slice so operations on this slice
 		// won't interfere with the object we return.
+		// 返回一个复制的对象
 		d = copyDeltas(d)
 	}
 	return d, exists, nil
@@ -555,7 +556,7 @@ func (f *DeltaFIFO) IsClosed() bool {
 //
 // Pop returns a 'Deltas', which has a complete list of all the things
 // that happened to the object (deltas) while it was sitting in the queue.
-// 消费reflector的数据
+// 消费reflector的数据，操作
 func (f *DeltaFIFO) Pop(process PopProcessFunc) (interface{}, error) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
