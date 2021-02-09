@@ -753,6 +753,7 @@ func (p *sharedProcessor) run(stopCh <-chan struct{}) {
 
 // shouldResync queries every listener to determine if any of them need a resync, based on each
 // listener's resyncPeriod.
+// 判断是否应该同步
 func (p *sharedProcessor) shouldResync() bool {
 	p.listenersLock.Lock()
 	defer p.listenersLock.Unlock()

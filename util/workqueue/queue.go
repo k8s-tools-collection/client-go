@@ -68,6 +68,7 @@ func newQueue(c clock.Clock, metrics queueMetrics, updatePeriod time.Duration) *
 const defaultUnfinishedWorkUpdatePeriod = 500 * time.Millisecond
 
 // Type is a work queue (see the package comment).
+// Type是一个工作队列
 type Type struct {
 	// queue defines the order in which we will work on items. Every
 	// element of queue should be in the dirty set and not in the

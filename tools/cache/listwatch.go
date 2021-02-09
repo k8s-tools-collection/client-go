@@ -49,6 +49,7 @@ type ListerWatcher interface {
 }
 
 // ListFunc knows how to list resources
+// 列举的函数
 type ListFunc func(options metav1.ListOptions) (runtime.Object, error)
 
 // WatchFunc knows how to watch resources
@@ -65,6 +66,7 @@ type ListWatch struct {
 }
 
 // Getter interface knows how to access Get method from RESTClient.
+// Getter接口知道如何从RESTClient访问Get方法。
 type Getter interface {
 	Get() *restclient.Request
 }

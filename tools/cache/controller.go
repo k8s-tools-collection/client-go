@@ -140,7 +140,7 @@ func New(c *Config) Controller {
 // Run begins processing items, and will continue until a value is sent down stopCh or it is closed.
 // It's an error to call Run more than once.
 // Run blocks; call via go.
-// contoller 业务逻辑的实现
+// contoller 业务逻辑的实现，启动relector
 func (c *controller) Run(stopCh <-chan struct{}) {
 	defer utilruntime.HandleCrash()
 	// 处理退出信号的协程

@@ -173,6 +173,7 @@ func NewNamespaceKeyedIndexerAndReflector(lw ListerWatcher, expectedType interfa
 // "yes".  This enables you to use reflectors to periodically process
 // everything as well as incrementally processing the things that
 // change.
+//
 func NewReflector(lw ListerWatcher, expectedType interface{}, store Store, resyncPeriod time.Duration) *Reflector {
 	return NewNamedReflector(naming.GetNameFromCallsite(internalPackages...), lw, expectedType, store, resyncPeriod)
 }
@@ -486,7 +487,7 @@ func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
 }
 
 // syncWith replaces the store's items with the given list.
-// 实现apiserver的全量同步
+// 实现apiserver的全量同步，
 func (r *Reflector) syncWith(items []runtime.Object, resourceVersion string) error {
    // slice类型转换
 	found := make([]interface{}, 0, len(items))
@@ -606,6 +607,7 @@ func (r *Reflector) setLastSyncResourceVersion(v string) {
 // versions no older than has already been observed in relist results or watch events, or, if the last relist resulted
 // in an HTTP 410 (Gone) status code, returns "" so that the relist will use the latest resource version available in
 // etcd via a quorum read.
+// relistResourceVersion确定反射器应列出或重新列出的资源版本
 func (r *Reflector) relistResourceVersion() string {
 	r.lastSyncResourceVersionMutex.RLock()
 	defer r.lastSyncResourceVersionMutex.RUnlock()
@@ -626,12 +628,14 @@ func (r *Reflector) relistResourceVersion() string {
 
 // setIsLastSyncResourceVersionUnavailable sets if the last list or watch request with lastSyncResourceVersion returned
 // "expired" or "too large resource version" error.
+// 设置“上次同步资源版本不可用”
 func (r *Reflector) setIsLastSyncResourceVersionUnavailable(isUnavailable bool) {
 	r.lastSyncResourceVersionMutex.Lock()
 	defer r.lastSyncResourceVersionMutex.Unlock()
 	r.isLastSyncResourceVersionUnavailable = isUnavailable
 }
 
+//
 func isExpiredError(err error) bool {
 	// In Kubernetes 1.17 and earlier, the api server returns both apierrors.StatusReasonExpired and
 	// apierrors.StatusReasonGone for HTTP 410 (Gone) status code responses. In 1.18 the kube server is more consistent
